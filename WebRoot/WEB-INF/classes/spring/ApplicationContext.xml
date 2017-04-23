@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop" 
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+						http://www.springframework.org/schema/beans/spring-beans.xsd
+						http://www.springframework.org/schema/aop 
+						http://www.springframework.org/schema/aop/spring-aop.xsd
+						http://www.springframework.org/schema/context 
+						http://www.springframework.org/schema/context/spring-context.xsd
+						http://www.springframework.org/schema/tx 
+						http://www.springframework.org/schema/tx/spring-tx.xsd
+	">
+	
+	<!-- 启用注解 -->
+	<context:annotation-config />
+	
+	<!-- 启动组件扫描，排除@Controller组件，该组件由SpringMVC配置文件扫描 -->
+	<context:component-scan base-package="com.sca">
+		<context:exclude-filter type="annotation"
+			expression="org.springframework.stereotype.Controller" />
+	</context:component-scan>
+	<!-- 加载配置文件 -->
+	<bean id="propertyConfigurer" class="org.springframework.beans.factory.config.PropertyPlaceholderConfigurer">  
+		<property name="locations">  
+			<list>  
+                 <value>classpath:dbconfig.properties</value>  
+            </list>  
+        </property>  
+	</bean> 
+	<!-- druid监控统计bean 对应下文dataSource中的proxyFilters，可bean形式配置，也可以直接在dataSource中配置
+	 	 slowSqlMillis定义多久为慢sql，缺省值为3000，也就是3秒，并且通过日志输出执行慢的SQL；mergeSql是否开启合并sql
+	-->  
+    <!-- 
+    <bean id="stat-filter" class="com.alibaba.druid.filter.stat.StatFilter">  
+        <property name="slowSqlMillis" value="4000" />  
+        <property name="logSlowSql" value="true" /> 
+        <property name="mergeSql" value="true" /> 
+    </bean> 
+     --> 
+     <bean id="log-filter" class="com.alibaba.druid.filter.logging.Log4jFilter">  
+	    <property name="statementExecutableSqlLogEnable" value="true" />  
+	    <property name="dataSourceLogEnabled" value="false" />
+	    <property name="connectionLogEnabled" value="false" />
+	    <property name="statementLogEnabled" value="false" />
+	    <property name="resultSetLogEnabled" value="true" />
+	 </bean>  
+	 <!-- 配置防火墙sql拦截参数 -->
+     <bean id="wall-filter-config" class="com.alibaba.druid.wall.WallConfig" init-method="init">
+          <!-- 指定配置装载的目录  -->
+          <property name="dir" value="META-INF/druid/wall/mysql" />
+          <property name="commentAllow" value="true"/>
+          <property name="multiStatementAllow" value="true"/>
+          <property name="selectUnionCheck" value="false"/>  
+          <!-- 是否允许非以上基本语句的其他语句，缺省关闭，通过这个选项就能够屏蔽DDL -->   
+          <property name="noneBaseStatementAllow" value="true"/>
+          <property name="schemaCheck" value="false"/>
+          <property name="deleteAllow" value="true"/>
+          <!-- 是否进行严格的语法检测，Druid SQL Parser在某些场景不能覆盖所有的SQL语法，出现解析SQL出错，可以临时把这个选项设置为false，同时把SQL反馈给Druid的开发者。 -->
+          <property name="strictSyntaxCheck" value="false"/>
+      </bean>
+    <bean id="wall-filter" class="com.alibaba.druid.wall.WallFilter">
+	      <property name="dbType" value="mysql" />
+	      <!-- 出现拦截sql是记录日志还是抛出异常 -->
+	      <property name="logViolation" value="true" />  
+	      <property name="throwException" value="false"/> 
+	      <property name="config" ref="wall-filter-config" />
+  	</bean>
+	<!-- 阿里 druid数据库连接池  init为显示调用初始话方法，初始连接数为initialSize值，不配置默认在第一次getConnection获取连接时初始话-->
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource" init-method="init" destroy-method="close">  
+         <!-- 数据库基本信息配置  driverClassName -->
+         <property name="url" value="${url}" />  
+         <property name="username" value="${username}" />  
+         <!-- 连接数据库的密码。如果你不希望密码直接写在配置文件中，可以使用ConfigFilter -->
+         <property name="password" value="${password}" /> 
+         <!-- 这一项可配可不配，如果不配置druid会根据url自动识别dbType，然后选择相应的driverClassName--> 
+         <property name="driverClassName" value="${driverClassName}" /> 
+         <!-- 配置监控过滤器，可根据需求配置多个,属性类型是字符串，通过别名的方式配置扩展插件，
+        	     常用的插件有：监控统计用的filter:stat 日志用的filter:log4j 防御sql注入的filter:wall，合并sql：mergeStat，加密数据库密码：config
+        	  wall在stat前面，拦截检测的时间不在StatFilter统计的SQL执行时间内,否则放后面; --> 
+         <property name="filters" value="${filters}" /> 
+         <!-- 类型是List<com.alibaba.druid.filter.Filter>，配置自定义filter,如果同时配置了filters和proxyFilters，是组合关系，并非替换关系 -->
+         <property name="proxyFilters">  
+            <list>  
+                <ref bean="wall-filter"/>  
+                <ref bean="log-filter"/>    
+            </list>  
+         </property> 
+         <!--  
+          -->
+   		 <!-- 最大并发连接数 -->
+         <property name="maxActive" value="${maxActive}" />
+         <!-- 初始化连接数量 -->
+         <property name="initialSize" value="${initialSize}" />
+         <!-- 配置获取连接时最大等待时间，单位毫秒，配置了maxWait之后，缺省启用公平锁，并发效率会有所下降，如果需要可以通过配置useUnfairLock属性为true使用非公平锁 -->
+         <property name="maxWait" value="${maxWait}" />
+         <!-- 最小空闲连接数,当连接数小于这个数时会自动创建一个  maxIdle已经不再使用，配置了也没效果-->
+         <property name="minIdle" value="${minIdle}" />  
+   		 <!-- 配置间隔多久才进行一次检测，检测需要关闭的空闲连接，单位是毫秒 ,1) Destroy线程会检测连接的间隔时间 2) testWhileIdle的判断依据，详细看testWhileIdle属性的说明-->
+         <property name="timeBetweenEvictionRunsMillis" value="${timeBetweenEvictionRunsMillis}" />
+         <!-- 配置一个连接在池中最小生存的时间，针对连接池中的连接对象,单位是毫秒，默认为30分钟 -->
+         <property name="minEvictableIdleTimeMillis" value="${minEvictableIdleTimeMillis}" />
+         <!-- Druid 1.0.18版本新增 缺省值7个小时。这个特性能解决mysql服务器8小时关闭连接的问题 -->
+         <!--
+         <property name="maxEvictableIdleTimeMillis" value="${maxEvictableIdleTimeMillis}" />
+         -->
+         <!-- 配置用来检测连接是否有效的sql，要求是一个查询语句。如果validationQuery为null，testOnBorrow、testOnReturn、testWhileIdle都不会其作用-->  
+         <property name="validationQuery" value="${validationQuery}" /> 
+         <!-- 检测连接是否有效的超时时间，可以避免网络连接中断引起的连接阻塞问题，单位：秒，
+         		底层调用jdbc Statement对象的void setQueryTimeout(int seconds)方法-->
+         <property name="validationQueryTimeout" value="${validationQueryTimeout}" /> 
+         <!-- 配置是否在空闲时测试是否能连接,建议配置为true，不影响性能，并且保证安全性。如果空闲时间大于timeBetweenEvictionRunsMillis，执行validationQuery检测连接是否有效 --> 
+         <property name="testWhileIdle" value="${testWhileIdle}" />  
+         <!-- 申请连接时执行validationQuery检测连接是否有效，做了这个配置会降低性能。 -->
+         <property name="testOnBorrow" value="${testOnBorrow}" />  
+         <!-- 归还连接时执行validationQuery检测连接是否有效，做了这个配置会降低性能-->
+         <property name="testOnReturn" value="${testOnReturn}" />  
+         <!-- 是否缓存preparedStatement，也就是PSCache。PSCache对支持游标的数据库性能提升巨大，比如说oracle。在mysql下建议关闭。 -->
+         <property name="poolPreparedStatements" value="false" />
+         <!-- 配置指定每个连接上PSCache的大小,要启用PSCache，必须配置大于0，否则为-1，当大于0时，poolPreparedStatements自动触发修改为true。
+         		在Druid中，不会存在Oracle下PSCache占用内存过多的问题，可以把这个数值配置大一些，比如说100 
+         		如果用Oracle，则把poolPreparedStatements配置为true，mysql可以配置为false。分库分表较多的数据库，建议配置为false。-->
+         <property name="maxOpenPreparedStatements" value="${maxOpenPreparedStatements}" />
+         <!-- 是否开启移除泄露连接的功能,配置removeAbandoned对性能会有一些影响，建议怀疑存在泄漏之后再打开。
+         	查看JdbcPoolConnectionOpenCount和JdbcPoolConnectionCloseCount属性，如果不相等，就是泄漏了-->
+         <property name="removeAbandoned" value="${removeAbandoned}" />
+         <!-- 活动连接的最大空闲时间,针对未被close的泄露连接。1800秒，也就是30分钟， 
+         	通过datasource.getConnontion() 取得的连接必须在removeAbandonedTimeout这么多秒内调用close(),要不我就弄死你.(就是conn不能超过指定的租期)-->
+         <property name="removeAbandonedTimeout" value="${removeAbandonedTimeout}" />
+         
+         <!-- 物理连接初始化的时候执行的sql，可以设置火星文编码set names utf8mb4 -->   
+         <property name="connectionInitSqls" value="${connectionInitSqls}" />
+         <!-- 可直接通过此配置来设置相关属性，如:druid.stat.slowSqlMillis=5000，druid.stat.mergeSql=true，
+         		config.file=file:///home/admin/druid-pool.properties，config.decrypt=true;config.decrypt.key=${publickey}-->
+         <!-- <property name="connectionProperties" value="config.decrypt=true;config.decrypt.key=${publicKey}" /> -->  
+         <!-- 关闭abanded连接时输出错误日志 -->   
+         <property name="logAbandoned" value="${logAbandoned}" />
+         <!-- 配置每5分钟输出一次统计日志；配置了timeBetweenLogStatsMillis属性（大于0）之后，就会定时输出统计信息到日志中。每次输出日志会导致清零（reset）连接池相关的计数器 -->
+         <property name="timeBetweenLogStatsMillis" value="${timeBetweenLogStatsMillis}" />
+	</bean>  
+	
+	<!-- 添加配置Druid和Spring关联监控，可监控哪个类的哪个方法的执行情况，按类型拦截配置、方法名正则匹配拦截配置、按照BeanId来拦截配置 -->
+	<bean id="druid-stat-interceptor" class="com.alibaba.druid.support.spring.stat.DruidStatInterceptor">
+	</bean>
+	<bean id="druid-stat-pointcut" class="org.springframework.aop.support.JdkRegexpMethodPointcut" scope="prototype">
+	    <property name="patterns">
+	        <list>
+	            <value>com.sca.service.*</value>
+	            <value>com.sca.dao.*</value>
+	            <value>com.sca.controller.*</value>
+	        </list>
+	    </property>
+	</bean>
+	<aop:config>
+	    <aop:advisor advice-ref="druid-stat-interceptor" pointcut-ref="druid-stat-pointcut" />
+	</aop:config>
+	
+	<!-- 配置事务管理 -->
+	<bean name="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">   
+    	<property name="dataSource" ref="dataSource"></property>
+ 	</bean>
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="delete*" propagation="REQUIRED" read-only="false" 
+			           rollback-for="java.lang.Exception"/>
+			<tx:method name="insert*" propagation="REQUIRED" read-only="false" 
+			           rollback-for="java.lang.Exception" />
+			<tx:method name="update*" propagation="REQUIRED" read-only="false" 
+			           rollback-for="java.lang.Exception" />
+			<tx:method name="save*" propagation="REQUIRED" read-only="false" 
+			           rollback-for="java.lang.Exception" />
+		</tx:attributes>
+	</tx:advice>
+	
+	<aop:aspectj-autoproxy proxy-target-class="true"/>
+	
+	<!-- 事物处理 -->
+	<aop:config>
+		<aop:pointcut id="pc" expression="execution(* com.sca.service..*(..))" />
+		<aop:advisor pointcut-ref="pc" advice-ref="txAdvice" />
+	</aop:config>
+	
+	<!-- 配置mybatis -->
+	<bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+    	<property name="dataSource" ref="dataSource" />
+        <property name="configLocation" value="classpath:mybatis/mybatis-config.xml"></property>
+        <!-- mapper扫描 -->
+        <property name="mapperLocations" value="classpath:mybatis/*/*.xml"></property>
+    </bean>
+    
+    <bean id="sqlSessionTemplate" class="org.mybatis.spring.SqlSessionTemplate">
+		<constructor-arg ref="sqlSessionFactory" />
+	</bean>
+	
+	<!-- ================ Shiro start ================ -->
+		<bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+			<property name="realm" ref="ShiroRealm" />
+		</bean>
+		
+		<!-- 項目自定义的Realm -->
+	    <bean id="ShiroRealm" class="com.sca.interceptor.shiro.ShiroRealm" ></bean>
+		
+		<!-- Shiro Filter -->
+		<bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+			<property name="securityManager" ref="securityManager" />
+			
+			<property name="loginUrl" value="/" />
+			
+			<property name="successUrl" value="/main/index" />
+			
+			<property name="unauthorizedUrl" value="/login_toLogin" />
+			
+			<!-- <property name="unauthorizedUrl" value="/appuser/registerUser" /> -->
+			
+			<property name="filterChainDefinitions">
+				<value>
+				/restful/*/** 			= anon
+				/static/login/** 			= anon
+				/static/js/myjs/** 			= authc
+				/static/js/** 				= anon
+				/uploadFiles/uploadImgs/** 	= anon
+	           	/code.do 					= anon
+	           	/login_login	 			= anon
+	           	/app**/** 					= anon 
+	           	/weixin/** 					= anon
+	           	/**							= authc
+				</value>
+			</property>
+		</bean>
+	<!-- ================ Shiro end ================ -->
+	
+   <!-- 配置缓存管理器工厂 -->
+	<bean id="cacheManager"
+		class="org.springframework.cache.ehcache.EhCacheManagerFactoryBean">
+		<property name="configLocation" value="classpath:ehcache.xml" />
+		<property name="shared" value="true" />
+	</bean>
+	<!-- 配置app用户缓存工厂，缓存名称为appUserCache -->
+	<bean id="ehcache" class="org.springframework.cache.ehcache.EhCacheFactoryBean">
+		<property name="cacheName" value="appUserCache" />
+		<property name="cacheManager" ref="cacheManager" />
+	</bean>
+</beans>
