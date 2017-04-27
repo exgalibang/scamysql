@@ -11,9 +11,9 @@
 
 						<button class="btn btn-small btn-success" onclick="changeMenu();" title="切换菜单"><i class="icon-pencil"></i></button>
 
-						<button class="btn btn-small btn-info" title="UI实例" onclick="window.open('<%=basePathl%>static/UI_new');"><i class="icon-eye-open"></i></button>
+						<button class="btn btn-small btn-info" title="运营商信息" onclick="yys();"><i class="icon-eye-open"></i></button>
 
-						<button class="btn btn-small btn-warning" title="运营商信息" id="adminzidian" onclick="zidian();"><i class="icon-book"></i></button>
+						<button class="btn btn-small btn-warning" title="关键字典" id="adminzidian" onclick="zidian();"><i class="icon-book"></i></button>
 						
 						<button class="btn btn-small btn-danger" title="菜单管理" id="adminmenu" onclick="menu();"><i class="icon-folder-open"></i></button>
 						

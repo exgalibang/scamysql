@@ -203,13 +203,29 @@ function productCode(){
 	 diag.show();
 }
 
-//数据字典
+//关键字典
 function zidian(){
 	 jzts();
 	 var diag = new top.Dialog();
 	 diag.Drag=true;
-	 diag.Title ="数据字典";
+	 diag.Title ="关键字典";
 	 diag.URL = locat+'/dictionaries.do?PARENT_ID=0';
+	 diag.Width = 799;
+	 diag.Height = 460;
+	 diag.CancelEvent = function(){ //关闭事件
+		diag.close();
+	 };
+	 diag.show();
+	 
+}
+
+//运营商信息
+function yys(){
+	 jzts();
+	 var diag = new top.Dialog();
+	 diag.Drag=true;
+	 diag.Title ="运营商信息";
+	 diag.URL = locat+'/operators.do?PARENT_ID=0';
 	 diag.Width = 799;
 	 diag.Height = 460;
 	 diag.CancelEvent = function(){ //关闭事件
